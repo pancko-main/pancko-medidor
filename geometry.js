@@ -262,6 +262,15 @@
     return {gross,discount,net:Math.max(0,gross-discount),rawNet:gross-discount};
   }
 
+  function roomAreas(length,width,height,discounts=[],includeCeiling=true,applyDiscounts=true){
+    const wallsGross=2*(length+width)*height;
+    const discount=applyDiscounts?discounts.reduce((sum,d)=>sum+d.width*d.height*d.quantity,0):0;
+    const rawWallsNet=wallsGross-discount;
+    const wallsNet=Math.max(0,rawWallsNet);
+    const ceiling=includeCeiling?length*width:0;
+    return {wallsGross,discount,wallsNet,rawWallsNet,ceiling,total:wallsNet+ceiling,includeCeiling,applyDiscounts};
+  }
+
   function poolAreas(length,width,depth){
     const floor=length*width, walls=2*(length+width)*depth;
     return {floor,walls,total:floor+walls};
@@ -283,6 +292,6 @@
   return {
     homography,transformPoint,polygonArea,signedPolygonArea,distance,quadDimensions,
     orderQuad,validateQuad,quadMetrics,isSelfCrossingQuad,qualityAssessment,
-    measureSurface,wallAreas,poolAreas,solariumArea,compareMeasurement
+    measureSurface,wallAreas,roomAreas,poolAreas,solariumArea,compareMeasurement
   };
 });

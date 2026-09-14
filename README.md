@@ -1,10 +1,10 @@
-# Pancko Medidor V0.4 experimental
+# Pancko Medidor V0.5 experimental
 
 PWA estática y local para calcular superficies mediante:
 
 1. cámara + referencia física conocida;
 2. foto/captura + referencia física o dimensiones conocidas;
-3. medidas manuales de pared, piso, pileta rectangular y solárium.
+3. medidas manuales de pared, ambiente, piso, pileta rectangular y solárium.
 
 No utiliza WebXR, ARCore, backend ni servicios externos. Está preparada para publicarse en GitHub Pages.
 
@@ -29,6 +29,17 @@ El método corrige la perspectiva de un plano, pero no reconstruye una escena 3D
 - advertencia cuando los descuentos manuales superan el área bruta;
 - caché PWA actualizado a `pancko-medidor-v0.4.0`;
 - 30 pruebas automáticas dirigidas más 1.000 proyecciones deterministas ejecutadas en cada test.
+
+## Cambios V0.5
+
+- nuevo cálculo manual de ambiente rectangular;
+- largo, ancho y alto del ambiente;
+- cálculo de las cuatro paredes por perímetro × altura;
+- descuento opcional de múltiples puertas y ventanas;
+- techo opcional;
+- resultados separados de paredes brutas, paredes netas, techo y total a pintar;
+- pruebas para ambiente con y sin descuentos y con y sin techo;
+- caché PWA actualizado a `pancko-medidor-v0.5.0`.
 
 ## Motor geométrico
 
@@ -61,7 +72,7 @@ También puede abrirse `tests/geometry-tests.html` para una comprobación básic
 
 Subir **el contenido de esta carpeta** a la raíz del repositorio `pancko-medidor`, reemplazando la versión anterior. Las rutas son relativas y funcionan bajo `/pancko-medidor/`.
 
-Después de publicar, recargar la aplicación. El service worker V0.4 elimina cachés anteriores durante la activación. Si el teléfono conserva temporalmente la versión anterior, cerrar la PWA, abrir la URL en Chrome y recargar una vez.
+Después de publicar, recargar la aplicación. El service worker V0.5 elimina cachés anteriores durante la activación. Si el teléfono conserva temporalmente la versión anterior, cerrar la PWA, abrir la URL en Chrome y recargar una vez.
 
 ## Protocolo físico inicial
 

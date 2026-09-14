@@ -442,7 +442,7 @@
     show($(`#${b.dataset.manual}Panel`),true);
   }));
 
-  function addOpening(data={name:"Ventana",w:1.2,h:1.1,qty:1}){
+  function addOpening(data={name:"Ventana",w:1.2,h:1.1,qty:1},listSelector="#openingsList"){
     const id=++state.openingSeq, wrap=document.createElement("div");
     wrap.className="opening-row";wrap.dataset.id=id;
     wrap.innerHTML=`
@@ -452,12 +452,17 @@
       <label class="qty-wrap">Cant.<input class="op-q" type="number" inputmode="numeric" min="1" step="1" value="${data.qty}"></label>
       <button class="remove-opening" aria-label="Quitar">×</button>`;
     wrap.querySelector(".remove-opening").addEventListener("click",()=>wrap.remove());
-    $("#openingsList").appendChild(wrap);
+    $(listSelector).appendChild(wrap);
   }
   $("#addOpeningBtn").addEventListener("click",()=>addOpening());
   addOpening({name:"Ventana",w:1.2,h:1.1,qty:2});
   addOpening({name:"Puerta",w:.9,h:2,qty:1});
   addOpening({name:"Portón",w:3,h:2.2,qty:1});
+
+  $("#addRoomOpeningBtn").addEventListener("click",()=>addOpening({name:"Ventana",w:1.2,h:1.1,qty:1},"#roomOpeningsList"));
+  addOpening({name:"Puerta",w:.9,h:2,qty:1},"#roomOpeningsList");
+  addOpening({name:"Ventana",w:1.2,h:1.1,qty:1},"#roomOpeningsList");
+  $("#discountRoomOpenings").addEventListener("change",e=>show($("#roomOpeningFields"),e.target.checked));
 
   $("#calcWallBtn").addEventListener("click",()=>{
     const w=val("#wallW"),h=val("#wallH"),discounts=[];
@@ -470,6 +475,28 @@
     const result=G.wallAreas(w,h,discounts);
     const warning=result.rawNet<0?'<div class="manual-warning">Los descuentos superan la superficie bruta. Revisá las medidas.</div>':"";
     $("#wallResult").innerHTML=`<div class="calc-summary">${line("Superficie bruta",`${fmt(result.gross,2)} m²`)}${lines}${line("SUPERFICIE NETA",`${fmt(result.net,2)} m²`,"total")}${warning}</div>`;
+  });
+
+  $("#calcRoomBtn").addEventListener("click",()=>{
+    const length=val("#roomL"),width=val("#roomW"),height=val("#roomH");
+    const applyDiscounts=$("#discountRoomOpenings").checked;
+    const includeCeiling=$("#includeRoomCeiling").checked;
+    const discounts=[];
+    let openingLines="";
+    $$("#roomOpeningsList .opening-row").forEach(row=>{
+      const name=row.querySelector(".op-name").value||"Abertura";
+      const openingWidth=Number(row.querySelector(".op-w").value)||0;
+      const openingHeight=Number(row.querySelector(".op-h").value)||0;
+      const quantity=Math.max(1,Number(row.querySelector(".op-q").value)||1);
+      const area=openingWidth*openingHeight*quantity;
+      discounts.push({width:openingWidth,height:openingHeight,quantity});
+      if(applyDiscounts) openingLines+=line(`${name} × ${quantity}`,`− ${fmt(area,2)} m²`);
+    });
+    const result=G.roomAreas(length,width,height,discounts,includeCeiling,applyDiscounts);
+    const discountStatus=applyDiscounts?openingLines:line("Puertas y ventanas","No descontadas");
+    const ceilingLine=includeCeiling?line("Techo",`+ ${fmt(result.ceiling,2)} m²`):line("Techo","No incluido");
+    const warning=result.rawWallsNet<0?'<div class="manual-warning">Las aberturas superan la superficie de paredes. Revisá las medidas.</div>':"";
+    $("#roomResult").innerHTML=`<div class="calc-summary">${line("Paredes brutas",`${fmt(result.wallsGross,2)} m²`)}${discountStatus}${line("PAREDES NETAS",`${fmt(result.wallsNet,2)} m²`)}${ceilingLine}${line("TOTAL A PINTAR",`${fmt(result.total,2)} m²`,"total")}${warning}</div>`;
   });
 
   $("#calcFloorBtn").addEventListener("click",()=>{
@@ -506,4 +533,5 @@
 
   // cálculo inicial útil
   $("#calcWallBtn").click();
+  $("#calcRoomBtn").click();
 })();

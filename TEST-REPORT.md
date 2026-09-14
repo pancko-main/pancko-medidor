@@ -1,10 +1,10 @@
-# Informe de pruebas — Pancko Medidor V0.4
+# Informe de pruebas — Pancko Medidor V0.5
 
 Fecha: 14 de septiembre de 2026.
 
 ## Resultado automático
 
-- 31/31 grupos de pruebas aprobados.
+- 34/34 grupos de pruebas aprobados.
 - El grupo 31 contiene 1.000 proyecciones sintéticas deterministas.
 - Sintaxis validada para `geometry.js`, `editor-utils.js`, `app.js` y el runner de tests.
 - 53 referencias a elementos de interfaz contrastadas contra el HTML, sin IDs faltantes.
@@ -20,6 +20,7 @@ Fecha: 14 de septiembre de 2026.
 - rechazo de duplicados, colinealidad y configuraciones casi singulares;
 - área de cuadriláteros no perfectamente rectangulares;
 - pared con varios descuentos, pileta y solárium;
+- ambiente rectangular con aberturas opcionales y techo opcional;
 - clamp de la lupa en los cuatro bordes, con y sin paneo.
 
 ## Requiere validación física

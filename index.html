@@ -16,7 +16,7 @@
     <button id="backBtn" class="icon-btn hidden" aria-label="Volver">←</button>
     <div>
       <h1>Pancko Medidor</h1>
-      <p class="subtitle">V0.4 experimental · primero medir, después vender pintura 😎</p>
+      <p class="subtitle">V0.5 experimental · primero medir, después vender pintura 😎</p>
     </div>
   </header>
 
@@ -200,6 +200,7 @@
 
       <div class="segmented">
         <button class="seg active" data-manual="wall">Pared</button>
+        <button class="seg" data-manual="room">Ambiente</button>
         <button class="seg" data-manual="floor">Piso</button>
         <button class="seg" data-manual="pool">Pileta</button>
         <button class="seg" data-manual="solarium">Solárium</button>
@@ -220,6 +221,29 @@
 
         <button id="calcWallBtn" class="btn primary full">Calcular pared</button>
         <div id="wallResult" class="manual-result"></div>
+      </div>
+
+      <div id="roomPanel" class="manual-panel card hidden">
+        <h3>Ambiente rectangular</h3>
+        <p class="hint">Calcula las cuatro paredes y, si querés, suma el techo.</p>
+        <div class="grid-3">
+          <label>Largo (m)<input id="roomL" type="number" inputmode="decimal" min="0" step="0.01" value="4"></label>
+          <label>Ancho (m)<input id="roomW" type="number" inputmode="decimal" min="0" step="0.01" value="3"></label>
+          <label>Alto (m)<input id="roomH" type="number" inputmode="decimal" min="0" step="0.01" value="2.4"></label>
+        </div>
+
+        <label class="check-row"><input id="discountRoomOpenings" type="checkbox" checked> Descontar puertas y ventanas</label>
+        <div id="roomOpeningFields">
+          <div class="subhead-row room-openings-head">
+            <h4>Aberturas</h4>
+            <button id="addRoomOpeningBtn" class="btn tiny secondary">+ Agregar</button>
+          </div>
+          <div id="roomOpeningsList"></div>
+        </div>
+
+        <label class="check-row"><input id="includeRoomCeiling" type="checkbox" checked> Incluir techo</label>
+        <button id="calcRoomBtn" class="btn primary full">Calcular ambiente</button>
+        <div id="roomResult" class="manual-result"></div>
       </div>
 
       <div id="floorPanel" class="manual-panel card hidden">
@@ -266,7 +290,7 @@
   </main>
 
   <footer>
-    <span>Pancko Medidor V0.4 · cálculo local · sin ARCore/WebXR</span>
+    <span>Pancko Medidor V0.5 · cálculo local · sin ARCore/WebXR</span>
   </footer>
 
   <script src="./geometry.js"></script>
