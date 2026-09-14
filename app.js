@@ -3,6 +3,7 @@
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
   const G = window.PanckoGeometry;
+  const EditorUtils = window.PanckoEditorUtils;
 
   const state = {
     view:"home",
@@ -69,7 +70,7 @@
     show($("#editorCard"),false);
     show($("#imageResultCard"),false);
     $("#compareOutput").textContent="";
-    $("#realAreaInput").value="";
+    ["#realWidthInput","#realHeightInput","#realAreaInput"].forEach(id=>$(id).value="");
     $("#photoInput").value="";
   }
 
@@ -186,33 +187,49 @@
     if(!state.imageCanvas) return;
     const loupe=$("#loupe"), lc=$("#loupeCanvas"), lctx=lc.getContext("2d");
     const size=lc.width;
-    const zoomFactor=2.6;
-    const sample=size/zoomFactor;
+    const canvasRect=$("#editorCanvas").getBoundingClientRect();
+    const cssPixelsPerImagePixel=canvasRect.width/$("#editorCanvas").width;
+    const zoomFactor=2.8;
+    const sample=size/(zoomFactor*Math.max(cssPixelsPerImagePixel,.01));
     lctx.clearRect(0,0,size,size);
-    lctx.imageSmoothingEnabled=true;
-    lctx.drawImage($("#editorCanvas"),
+    lctx.imageSmoothingEnabled=false;
+    lctx.drawImage(state.imageCanvas,
       point.x - sample/2, point.y - sample/2, sample, sample,
       0,0,size,size
     );
     lctx.save();
-    lctx.strokeStyle="rgba(255,255,255,.95)";
-    lctx.lineWidth=2;
-    lctx.beginPath(); lctx.moveTo(size/2,0); lctx.lineTo(size/2,size); lctx.stroke();
-    lctx.beginPath(); lctx.moveTo(0,size/2); lctx.lineTo(size,size/2); lctx.stroke();
+    [["rgba(0,0,0,.8)",3],["rgba(255,255,255,.98)",1]].forEach(([color,lineWidth])=>{
+      lctx.strokeStyle=color;lctx.lineWidth=lineWidth;
+      lctx.beginPath();lctx.moveTo(size/2,12);lctx.lineTo(size/2,size-12);lctx.stroke();
+      lctx.beginPath();lctx.moveTo(12,size/2);lctx.lineTo(size-12,size/2);lctx.stroke();
+      lctx.beginPath();lctx.arc(size/2,size/2,6,0,Math.PI*2);lctx.stroke();
+    });
     lctx.restore();
 
     const vp=$("#canvasViewport");
     const rect=vp.getBoundingClientRect();
-    const loupeSize=160, gap=18;
-    let left=(clientX-rect.left)+gap;
-    let top=(clientY-rect.top)-loupeSize-gap;
-    if(left+loupeSize > rect.width-6) left=(clientX-rect.left)-loupeSize-gap;
-    if(left < 6) left=6;
-    if(top < 6) top=(clientY-rect.top)+gap;
-    if(top+loupeSize > rect.height-6) top=Math.max(6, rect.height-loupeSize-6);
-    loupe.style.left=`${left}px`;
-    loupe.style.top=`${top}px`;
+    const loupeSize=loupe.offsetWidth||168, gap=22, margin=6;
+    const pointerX=vp.scrollLeft+(clientX-rect.left);
+    const pointerY=vp.scrollTop+(clientY-rect.top);
+    const position=EditorUtils.loupePosition(
+      {x:pointerX,y:pointerY},
+      {left:vp.scrollLeft+margin,top:vp.scrollTop+margin,right:vp.scrollLeft+vp.clientWidth-margin,bottom:vp.scrollTop+vp.clientHeight-margin},
+      loupeSize,gap
+    );
+    loupe.style.left=`${position.left}px`;
+    loupe.style.top=`${position.top}px`;
     show(loupe, true);
+  }
+
+  function normalizeCompletedGroups(){
+    try{
+      if(state.calibration==="known-plane" && state.points.length===4){
+        state.points=G.orderQuad(state.points);
+      }else{
+        if(state.points.length>=4) state.points.splice(0,4,...G.orderQuad(state.points.slice(0,4)));
+        if(state.points.length>=8) state.points.splice(4,4,...G.orderQuad(state.points.slice(4,8)));
+      }
+    }catch(_){ /* Se conservan los puntos para que el usuario pueda corregirlos. */ }
   }
 
   function targetPointCount(){ return state.calibration==="known-plane" ? 4 : 8; }
@@ -294,10 +311,12 @@
     if(state.dragging>=0){
       state.dragging=-1;
       hideLoupe();
+      normalizeCompletedGroups();
       updateEditorUI();
     }else if(state.gesture && state.gesture.pointerId===e.pointerId){
       if(!state.gesture.moved && state.points.length<targetPointCount()){
         state.points.push(state.gesture.point);
+        normalizeCompletedGroups();
         updateEditorUI();
       }
       state.gesture=null;
@@ -368,22 +387,20 @@
     try{
       let area,width,height,origin,warning="";
       if(state.calibration==="known-plane"){
-        const q=G.orderQuad(state.points.slice(0,4));
+        const validation=G.validateQuad(state.points.slice(0,4));
+        if(!validation.valid) throw new Error(validation.reason);
         width=val("#planeWidth");height=val("#planeHeight");area=width*height;
         origin="ESTIMACIÓN DESDE IMAGEN";
         warning="El ancho y alto reales fueron aportados por vos; la imagen sirve para definir el plano. En Street View tratá el resultado como estimación.";
       }else{
-        const ref=G.orderQuad(state.points.slice(0,4)), surf=G.orderQuad(state.points.slice(4,8));
         let rw,rh;
         if(state.calibration==="a4"){
           const landscape=$("#a4Orientation").value==="landscape";
-          rw=landscape?.297:.210; rh=landscape?.210:.297;
+          rw=landscape ? .297 : .210;
+          rh=landscape ? .210 : .297;
         } else {rw=val("#refWidth")/100;rh=val("#refHeight")/100}
-        const dst=[{x:0,y:0},{x:rw,y:0},{x:rw,y:rh},{x:0,y:rh}];
-        const H=G.homography(ref,dst);
-        const metric=surf.map(p=>G.transformPoint(H,p));
-        area=G.polygonArea(metric);
-        const dims=G.quadDimensions(metric);width=dims.width;height=dims.height;
+        const measured=G.measureSurface(state.points.slice(0,4),rw,rh,state.points.slice(4,8));
+        area=measured.area;width=measured.width;height=measured.height;
         if(!isFinite(area)||area<=0||area>100000) throw new Error("El resultado no es geométricamente razonable. Revisá los puntos.");
         origin=state.imageMode==="camera"?"MEDICIÓN CON CÁMARA + REFERENCIA":"MEDICIÓN DESDE REFERENCIA FOTOGRÁFICA";
       }
@@ -406,9 +423,16 @@
   });
   $("#compareRealBtn").addEventListener("click",()=>{
     if(!state.lastImageResult)return;
-    const real=val("#realAreaInput");if(real<=0)return alert("Ingresá una superficie real válida.");
-    const measured=state.lastImageResult.area, diff=measured-real, pct=diff/real*100;
-    $("#compareOutput").innerHTML=`Medido: <strong>${fmt(measured,2)} m²</strong> · Real: <strong>${fmt(real,2)} m²</strong><br>Diferencia: <strong>${diff>=0?"+":""}${fmt(diff,2)} m² (${pct>=0?"+":""}${fmt(pct,2)} %)</strong>`;
+    const comparisons=[
+      ["Ancho",state.lastImageResult.width,val("#realWidthInput"),"m"],
+      ["Alto",state.lastImageResult.height,val("#realHeightInput"),"m"],
+      ["Área",state.lastImageResult.area,val("#realAreaInput"),"m²"]
+    ].filter(([, ,real])=>real>0);
+    if(!comparisons.length) return alert("Ingresá al menos una medida real.");
+    $("#compareOutput").innerHTML=comparisons.map(([label,measured,real,unit])=>{
+      const c=G.compareMeasurement(measured,real), sign=c.difference>=0?"+":"", pctSign=c.errorPercent>=0?"+":"";
+      return `<div class="validation-line"><strong>${label}</strong><span>Medido ${fmt(measured,2)} ${unit} · Real ${fmt(real,2)} ${unit}<br>Diferencia <b>${sign}${fmt(c.difference,2)} ${unit}</b> · Error <b>${pctSign}${fmt(c.errorPercent,2)} %</b></span></div>`;
+    }).join("");
   });
 
   // Manual
@@ -436,15 +460,16 @@
   addOpening({name:"Portón",w:3,h:2.2,qty:1});
 
   $("#calcWallBtn").addEventListener("click",()=>{
-    const w=val("#wallW"),h=val("#wallH"),gross=w*h;
-    let disc=0,lines="";
+    const w=val("#wallW"),h=val("#wallH"),discounts=[];
+    let lines="";
     $$("#openingsList .opening-row").forEach(r=>{
       const name=r.querySelector(".op-name").value||"Descuento";
       const ow=Number(r.querySelector(".op-w").value)||0, oh=Number(r.querySelector(".op-h").value)||0, q=Math.max(1,Number(r.querySelector(".op-q").value)||1);
-      const a=ow*oh*q;disc+=a;lines+=line(`${name} × ${q}`,`− ${fmt(a,2)} m²`);
+      const a=ow*oh*q;discounts.push({width:ow,height:oh,quantity:q});lines+=line(`${name} × ${q}`,`− ${fmt(a,2)} m²`);
     });
-    const net=Math.max(0,gross-disc);
-    $("#wallResult").innerHTML=`<div class="calc-summary">${line("Superficie bruta",`${fmt(gross,2)} m²`)}${lines}${line("SUPERFICIE NETA",`${fmt(net,2)} m²`,"total")}</div>`;
+    const result=G.wallAreas(w,h,discounts);
+    const warning=result.rawNet<0?'<div class="manual-warning">Los descuentos superan la superficie bruta. Revisá las medidas.</div>':"";
+    $("#wallResult").innerHTML=`<div class="calc-summary">${line("Superficie bruta",`${fmt(result.gross,2)} m²`)}${lines}${line("SUPERFICIE NETA",`${fmt(result.net,2)} m²`,"total")}${warning}</div>`;
   });
 
   $("#calcFloorBtn").addEventListener("click",()=>{
@@ -454,8 +479,8 @@
 
   $("#calcPoolBtn").addEventListener("click",()=>{
     const L=val("#poolL"),W=val("#poolW"),D=val("#poolD");
-    const floor=L*W,walls=2*(L+W)*D,total=floor+walls;
-    $("#poolResult").innerHTML=`<div class="calc-summary">${line("Piso",`${fmt(floor,2)} m²`)}${line("Paredes",`${fmt(walls,2)} m²`)}${line("TOTAL INTERIOR",`${fmt(total,2)} m²`,"total")}</div>`;
+    const result=G.poolAreas(L,W,D);
+    $("#poolResult").innerHTML=`<div class="calc-summary">${line("Piso",`${fmt(result.floor,2)} m²`)}${line("Paredes",`${fmt(result.walls,2)} m²`)}${line("TOTAL INTERIOR",`${fmt(result.total,2)} m²`,"total")}</div>`;
   });
 
   $("#uniformSolarium").addEventListener("change",e=>{
@@ -466,8 +491,8 @@
     let t,b,l,r;
     if($("#uniformSolarium").checked){t=b=l=r=val("#solUniform")}
     else{t=val("#solTop");b=val("#solBottom");l=val("#solLeft");r=val("#solRight")}
-    const outerL=L+t+b, outerW=W+l+r, outer=outerL*outerW, pool=L*W, sol=outer-pool;
-    $("#solResult").innerHTML=`<div class="calc-summary">${line("Rectángulo exterior",`${fmt(outer,2)} m²`)}${line("Pileta",`− ${fmt(pool,2)} m²`)}${line("SOLÁRIUM",`${fmt(sol,2)} m²`,"total")}</div>`;
+    const result=G.solariumArea(L,W,{top:t,bottom:b,left:l,right:r});
+    $("#solResult").innerHTML=`<div class="calc-summary">${line("Rectángulo exterior",`${fmt(result.outer,2)} m²`)}${line("Pileta",`− ${fmt(result.pool,2)} m²`)}${line("SOLÁRIUM",`${fmt(result.area,2)} m²`,"total")}</div>`;
   });
 
   function line(a,b,cls=""){return `<div class="calc-line ${cls}"><span>${a}</span><strong>${b}</strong></div>`}

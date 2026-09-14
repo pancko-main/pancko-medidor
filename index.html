@@ -16,7 +16,7 @@
     <button id="backBtn" class="icon-btn hidden" aria-label="Volver">←</button>
     <div>
       <h1>Pancko Medidor</h1>
-      <p class="subtitle">V0.3 experimental · primero medir, después vender pintura 😎</p>
+      <p class="subtitle">V0.4 experimental · primero medir, después vender pintura 😎</p>
     </div>
   </header>
 
@@ -132,7 +132,7 @@
           <button id="undoPointBtn" class="btn tiny secondary">Deshacer</button>
           <button id="resetPointsBtn" class="btn tiny secondary">Reiniciar</button>
           <label class="zoom-label">Zoom
-            <input id="zoomRange" type="range" min="100" max="450" value="100">
+            <input id="zoomRange" type="range" min="100" max="600" value="100">
           </label>
         </div>
 
@@ -141,6 +141,7 @@
           <button class="btn tiny secondary zoom-preset" data-zoom="200">200%</button>
           <button class="btn tiny secondary zoom-preset" data-zoom="300">300%</button>
           <button class="btn tiny secondary zoom-preset" data-zoom="450">450%</button>
+          <button class="btn tiny secondary zoom-preset" data-zoom="600">600%</button>
         </div>
 
         <div id="canvasViewport" class="canvas-viewport">
@@ -173,10 +174,13 @@
         <div id="imageResultWarning" class="notice compact hidden"></div>
 
         <details class="validation-box">
-          <summary>Modo calibración / comparación real</summary>
-          <label>Superficie real (m²)
-            <input id="realAreaInput" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="Ej. 12,40">
-          </label>
+          <summary>Datos de validación</summary>
+          <p class="hint">Opcional: completá una, dos o las tres medidas reales. El error corresponde únicamente a esta prueba.</p>
+          <div class="grid-3 validation-inputs">
+            <label>Ancho real (m)<input id="realWidthInput" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="Ej. 3,00"></label>
+            <label>Alto real (m)<input id="realHeightInput" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="Ej. 2,50"></label>
+            <label>Superficie real (m²)<input id="realAreaInput" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="Ej. 7,50"></label>
+          </div>
           <button id="compareRealBtn" class="btn secondary full">Comparar</button>
           <div id="compareOutput" class="compare-output"></div>
         </details>
@@ -262,10 +266,11 @@
   </main>
 
   <footer>
-    <span>Pancko Medidor V0.2 · cálculo local · sin ARCore/WebXR</span>
+    <span>Pancko Medidor V0.4 · cálculo local · sin ARCore/WebXR</span>
   </footer>
 
   <script src="./geometry.js"></script>
+  <script src="./editor-utils.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>
