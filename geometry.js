@@ -61,6 +61,27 @@
     return {width:(top+bottom)/2, height:(left+right)/2, sides:{top,right,bottom,left}};
   }
 
+  function orderQuad(pts){
+    if(!pts || pts.length !== 4) return (pts || []).slice();
+    const p = pts.map(q=>({x:q.x,y:q.y}));
+    const sums = p.map(q=>q.x+q.y);
+    const diffs = p.map(q=>q.y-q.x);
+    const iTL = sums.indexOf(Math.min(...sums));
+    const iBR = sums.indexOf(Math.max(...sums));
+    const iTR = diffs.indexOf(Math.min(...diffs));
+    const iBL = diffs.indexOf(Math.max(...diffs));
+    const idx = [iTL,iTR,iBR,iBL];
+    if(new Set(idx).size === 4) return idx.map(i=>p[i]);
+
+    const cx=p.reduce((s,q)=>s+q.x,0)/4, cy=p.reduce((s,q)=>s+q.y,0)/4;
+    let ordered=p.slice().sort((a,b)=>Math.atan2(a.y-cy,a.x-cx)-Math.atan2(b.y-cy,b.x-cx));
+    let start=0, best=Infinity;
+    ordered.forEach((q,i)=>{const s=q.x+q.y;if(s<best){best=s;start=i}});
+    ordered=ordered.slice(start).concat(ordered.slice(0,start));
+    if(ordered[1].x < ordered[3].x) ordered=[ordered[0],ordered[3],ordered[2],ordered[1]];
+    return ordered;
+  }
+
   function signedCross(a,b,c){
     return (b.x-a.x)*(c.y-a.y) - (b.y-a.y)*(c.x-a.x);
   }
@@ -80,6 +101,7 @@
     const issues=[];
     let score=0;
     if(refPts && refPts.length===4){
+      refPts=orderQuad(refPts);
       const refArea=quadAreaPixels(refPts);
       const imageArea=imageW*imageH;
       const ratio=refArea/imageArea;
@@ -92,7 +114,7 @@
       if(maxSide/minSide > 8){ issues.push("La perspectiva sobre la referencia es extrema."); score+=2; }
     }
     if(surfacePts && surfacePts.length===4){
-      if(isSelfCrossingQuad(surfacePts)){ issues.push("Los puntos de la superficie están cruzados."); score+=3; }
+      surfacePts=orderQuad(surfacePts);
       const a=quadAreaPixels(surfacePts)/(imageW*imageH);
       if(a < 0.03){ issues.push("La superficie marcada ocupa muy poco de la imagen."); score+=1; }
     }
@@ -103,6 +125,6 @@
 
   global.PanckoGeometry = {
     homography, transformPoint, polygonArea, distance, quadDimensions,
-    isSelfCrossingQuad, qualityAssessment
+    orderQuad, isSelfCrossingQuad, qualityAssessment
   };
 })(window);

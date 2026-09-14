@@ -1,4 +1,4 @@
-# Pancko Medidor V0.1
+# Pancko Medidor V0.2
 
 PWA estática para medir superficies por:
 
@@ -79,3 +79,13 @@ No depende de OpenCV ni librerías externas, así que la PWA puede funcionar off
 - historial de pruebas;
 - formas irregulares;
 - rendimiento, litros, envases y productos.
+
+
+## Cambios V0.2
+- Las 4 esquinas pueden tocarse en **cualquier orden**.
+- El motor normaliza los vértices antes de calcular la homografía.
+- Se evita intercambiar ancho/alto por empezar a marcar desde otra esquina.
+- Con zoom > 100 %, podés **arrastrar el fondo de la imagen para desplazarte**.
+- Los puntos continúan siendo arrastrables para ajuste fino.
+
+**Precisión:** la referencia debe estar físicamente sobre el mismo plano. Un portón o una puerta hundidos respecto de la fachada pueden introducir error.

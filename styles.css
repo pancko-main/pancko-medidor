@@ -83,3 +83,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:0 10px 24px}
 }
 
 select{width:100%;margin-top:6px;padding:11px 12px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#111827}
+
+/* V0.2: paneo con zoom administrado por JS */
+#editorCanvas{user-select:none;-webkit-user-select:none}
+.canvas-viewport{overscroll-behavior:contain}

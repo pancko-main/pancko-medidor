@@ -12,6 +12,7 @@
     imageBitmap:null,
     points:[],
     dragging:-1,
+    gesture:null,
     calibration:"a4",
     lastImageResult:null,
     openingSeq:0
@@ -171,13 +172,13 @@
     $("#pointCount").textContent=n; $("#pointTarget").textContent=target;
     if(state.calibration==="known-plane"){
       $("#markingTitle").textContent="Marcá las 4 esquinas de la superficie";
-      $("#markingInstruction").textContent="Orden: arriba izq. → arriba der. → abajo der. → abajo izq. Después podés arrastrarlas.";
+      $("#markingInstruction").textContent="Tocá las 4 esquinas en cualquier orden. Después podés arrastrarlas y hacer zoom.";
     }else if(n<4){
       $("#markingTitle").textContent="Marcá la referencia";
-      $("#markingInstruction").textContent=`Punto ${n+1}/4 · arriba izq. → arriba der. → abajo der. → abajo izq.`;
+      $("#markingInstruction").textContent=`Esquina ${n+1}/4 · podés tocarlas en cualquier orden.`;
     }else{
       $("#markingTitle").textContent="Marcá la superficie";
-      $("#markingInstruction").textContent=`Punto ${Math.min(4,n-3)}/4 · mismo orden: arriba izq. → arriba der. → abajo der. → abajo izq.`;
+      $("#markingInstruction").textContent=`Esquina ${Math.min(4,n-3)}/4 · podés tocarlas en cualquier orden.`;
     }
     $("#calculateImageBtn").disabled=n!==target;
     updateQuality();
@@ -199,24 +200,65 @@
   canvas.addEventListener("pointerdown",e=>{
     if(!state.imageCanvas) return;
     const p=canvasPointFromEvent(e), hit=hitPoint(p);
+    canvas.setPointerCapture(e.pointerId);
     if(hit>=0){
-      state.dragging=hit; canvas.setPointerCapture(e.pointerId);
-    }else if(state.points.length<targetPointCount()){
-      state.points.push(p); updateEditorUI();
+      state.dragging=hit;
+      state.gesture=null;
+    }else{
+      const vp=$("#canvasViewport");
+      state.gesture={
+        pointerId:e.pointerId,
+        startX:e.clientX,startY:e.clientY,
+        scrollLeft:vp.scrollLeft,scrollTop:vp.scrollTop,
+        point:p,moved:false
+      };
+    }
+    e.preventDefault();
+  });
+
+  canvas.addEventListener("pointermove",e=>{
+    if(state.dragging>=0){
+      const p=canvasPointFromEvent(e);
+      p.x=Math.max(0,Math.min(canvas.width,p.x)); p.y=Math.max(0,Math.min(canvas.height,p.y));
+      state.points[state.dragging]=p; renderEditor(); updateQuality();
+      e.preventDefault();
+      return;
+    }
+    if(state.gesture && state.gesture.pointerId===e.pointerId){
+      const dx=e.clientX-state.gesture.startX, dy=e.clientY-state.gesture.startY;
+      if(Math.hypot(dx,dy)>7 && Number($("#zoomRange").value)>100){
+        state.gesture.moved=true;
+        const vp=$("#canvasViewport");
+        vp.scrollLeft=state.gesture.scrollLeft-dx;
+        vp.scrollTop=state.gesture.scrollTop-dy;
+      }
+      e.preventDefault();
     }
   });
-  canvas.addEventListener("pointermove",e=>{
-    if(state.dragging<0) return;
-    const p=canvasPointFromEvent(e);
-    p.x=Math.max(0,Math.min(canvas.width,p.x)); p.y=Math.max(0,Math.min(canvas.height,p.y));
-    state.points[state.dragging]=p; renderEditor(); updateQuality();
-  });
-  function endDrag(e){ if(state.dragging>=0){state.dragging=-1;updateEditorUI()} }
-  canvas.addEventListener("pointerup",endDrag); canvas.addEventListener("pointercancel",endDrag);
+
+  function endPointer(e){
+    if(state.dragging>=0){
+      state.dragging=-1;
+      updateEditorUI();
+    }else if(state.gesture && state.gesture.pointerId===e.pointerId){
+      if(!state.gesture.moved && state.points.length<targetPointCount()){
+        state.points.push(state.gesture.point);
+        updateEditorUI();
+      }
+      state.gesture=null;
+    }
+  }
+  canvas.addEventListener("pointerup",endPointer);
+  canvas.addEventListener("pointercancel",()=>{state.dragging=-1;state.gesture=null});
 
   $("#undoPointBtn").addEventListener("click",()=>{state.points.pop();updateEditorUI()});
   $("#resetPointsBtn").addEventListener("click",()=>{state.points=[];updateEditorUI()});
-  $("#zoomRange").addEventListener("input",e=>{$("#editorCanvas").style.width=`${e.target.value}%`});
+  $("#zoomRange").addEventListener("input",e=>{
+    $("#editorCanvas").style.width=`${e.target.value}%`;
+    if(Number(e.target.value)>100 && !$("#markingInstruction").textContent.includes("arrastrá el fondo")){
+      $("#markingInstruction").textContent += " Con zoom, arrastrá el fondo para moverte.";
+    }
+  });
 
   function renderEditor(){
     const c=$("#editorCanvas"), ctx=c.getContext("2d");
@@ -254,14 +296,12 @@
     try{
       let area,width,height,origin,warning="";
       if(state.calibration==="known-plane"){
-        const q=state.points.slice(0,4);
-        if(G.isSelfCrossingQuad(q)) throw new Error("Los puntos de la superficie están cruzados.");
+        const q=G.orderQuad(state.points.slice(0,4));
         width=val("#planeWidth");height=val("#planeHeight");area=width*height;
         origin="ESTIMACIÓN DESDE IMAGEN";
         warning="El ancho y alto reales fueron aportados por vos; la imagen sirve para definir el plano. En Street View tratá el resultado como estimación.";
       }else{
-        const ref=state.points.slice(0,4), surf=state.points.slice(4,8);
-        if(G.isSelfCrossingQuad(ref)||G.isSelfCrossingQuad(surf)) throw new Error("Hay puntos cruzados. Corregí el orden de las esquinas.");
+        const ref=G.orderQuad(state.points.slice(0,4)), surf=G.orderQuad(state.points.slice(4,8));
         let rw,rh;
         if(state.calibration==="a4"){
           const landscape=$("#a4Orientation").value==="landscape";
