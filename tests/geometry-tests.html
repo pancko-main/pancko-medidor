@@ -1,1 +1,25 @@
-
+<!doctype html>
+<meta charset="utf-8">
+<title>Pancko Geometry Tests</title>
+<pre id="out">Ejecutando…</pre>
+<script src="../geometry.js"></script>
+<script>
+const G=PanckoGeometry, out=document.querySelector("#out");
+function approx(a,b,t=1e-7){return Math.abs(a-b)<t}
+function run(){
+  const src=[{x:200,y:120},{x:510,y:150},{x:500,y:260},{x:210,y:240}];
+  const dst=[{x:0,y:0},{x:1,y:0},{x:1,y:.3},{x:0,y:.3}];
+  const H=G.homography(src,dst);
+  const mapped=src.map(p=>G.transformPoint(H,p));
+  const okCorners=mapped.every((p,i)=>approx(p.x,dst[i].x,1e-6)&&approx(p.y,dst[i].y,1e-6));
+  const area=G.polygonArea(dst);
+  const tests=[
+    ["Homografía recupera 4 correspondencias",okCorners],
+    ["Área 1 × 0,3 = 0,3",approx(area,.3)],
+    ["Detecta cuadrilátero cruzado",G.isSelfCrossingQuad([{x:0,y:0},{x:1,y:1},{x:0,y:1},{x:1,y:0}])],
+    ["Acepta cuadrilátero normal",!G.isSelfCrossingQuad(dst)]
+  ];
+  out.textContent=tests.map(([n,ok])=>`${ok?"✅":"❌"} ${n}`).join("\n");
+}
+run();
+</script>
