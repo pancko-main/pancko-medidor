@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <meta name="description" content="Pancko Medidor V0 — medición de superficies por cámara, foto y medidas manuales.">
+  <title>Pancko Medidor</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <button id="backBtn" class="icon-btn hidden" aria-label="Volver">←</button>
+    <div>
+      <h1>Pancko Medidor</h1>
+      <p class="subtitle">V0 experimental · primero medir, después vender pintura 😎</p>
+    </div>
+  </header>
+
+  <main id="app">
+    <section id="homeView" class="view active">
+      <div class="hero card">
+        <div class="hero-badge">V0</div>
+        <h2>¿Cómo querés medir?</h2>
+        <p>Los tres caminos terminan en lo mismo: superficie bruta − descuentos = superficie neta.</p>
+      </div>
+
+      <div class="mode-grid">
+        <button class="mode-card" data-go="camera">
+          <span class="mode-icon">📷</span>
+          <strong>Medir con cámara</strong>
+          <small>Foto guiada + referencia conocida</small>
+        </button>
+        <button class="mode-card" data-go="photo">
+          <span class="mode-icon">🖼️</span>
+          <strong>Medir desde foto</strong>
+          <small>Foto, captura o Street View</small>
+        </button>
+        <button class="mode-card" data-go="manual">
+          <span class="mode-icon">📐</span>
+          <strong>Ingresar medidas</strong>
+          <small>Pared, piso, pileta y solárium</small>
+        </button>
+      </div>
+
+      <div class="notice">
+        <strong>Importante:</strong> cámara/foto son estimaciones geométricas. La referencia debe estar sobre el mismo plano físico que la superficie.
+      </div>
+    </section>
+
+    <section id="imageView" class="view">
+      <div class="section-head">
+        <h2 id="imageModeTitle">Medir desde imagen</h2>
+        <p id="imageModeHelp">Cargá una imagen y seguí los pasos.</p>
+      </div>
+
+      <div id="cameraPanel" class="card hidden">
+        <div class="camera-wrap">
+          <video id="cameraVideo" playsinline autoplay muted></video>
+        </div>
+        <div class="row">
+          <button id="startCameraBtn" class="btn secondary">Abrir cámara</button>
+          <button id="captureBtn" class="btn primary" disabled>Tomar foto</button>
+        </div>
+        <p id="cameraMsg" class="hint"></p>
+      </div>
+
+      <div id="uploadPanel" class="card hidden">
+        <label class="file-picker">
+          <input id="photoInput" type="file" accept="image/*">
+          <span>Elegir foto o captura</span>
+        </label>
+      </div>
+
+      <div id="calibrationCard" class="card hidden">
+        <h3>1. Elegí la referencia</h3>
+        <label class="radio-row">
+          <input type="radio" name="calibrationMode" value="a4" checked>
+          <span><strong>Hoja A4</strong><small>210 × 297 mm</small></span>
+        </label>
+        <div id="a4OrientationFields">
+          <label>Orientación de la hoja A4
+            <select id="a4Orientation">
+              <option value="portrait">Vertical · 21 × 29,7 cm</option>
+              <option value="landscape">Apaisada · 29,7 × 21 cm</option>
+            </select>
+          </label>
+        </div>
+        <label class="radio-row">
+          <input type="radio" name="calibrationMode" value="custom">
+          <span><strong>Rectángulo personalizado</strong><small>Ingresá ancho y alto reales</small></span>
+        </label>
+        <label class="radio-row photo-only">
+          <input type="radio" name="calibrationMode" value="known-plane">
+          <span><strong>Ya conozco ancho y alto del plano</strong><small>Útil para una fachada conocida o Street View</small></span>
+        </label>
+
+        <div id="customReferenceFields" class="grid-2 hidden">
+          <label>Ancho de referencia (cm)
+            <input id="refWidth" type="number" inputmode="decimal" min="0.1" step="0.1" value="30">
+          </label>
+          <label>Alto de referencia (cm)
+            <input id="refHeight" type="number" inputmode="decimal" min="0.1" step="0.1" value="30">
+          </label>
+        </div>
+
+        <div id="knownPlaneFields" class="grid-2 hidden">
+          <label>Ancho real del plano (m)
+            <input id="planeWidth" type="number" inputmode="decimal" min="0.01" step="0.01" value="10">
+          </label>
+          <label>Alto real del plano (m)
+            <input id="planeHeight" type="number" inputmode="decimal" min="0.01" step="0.01" value="3.2">
+          </label>
+        </div>
+
+        <button id="beginMarkingBtn" class="btn primary full">Empezar a marcar</button>
+      </div>
+
+      <div id="editorCard" class="card hidden">
+        <div class="editor-head">
+          <div>
+            <h3 id="markingTitle">Marcá los puntos</h3>
+            <p id="markingInstruction" class="hint"></p>
+          </div>
+          <div class="step-pill"><span id="pointCount">0</span>/<span id="pointTarget">8</span></div>
+        </div>
+
+        <div class="toolbar">
+          <button id="undoPointBtn" class="btn tiny secondary">Deshacer</button>
+          <button id="resetPointsBtn" class="btn tiny secondary">Reiniciar</button>
+          <label class="zoom-label">Zoom
+            <input id="zoomRange" type="range" min="100" max="220" value="100">
+          </label>
+        </div>
+
+        <div id="canvasViewport" class="canvas-viewport">
+          <canvas id="editorCanvas"></canvas>
+        </div>
+
+        <div class="legend">
+          <span><i class="dot ref-dot"></i> Referencia</span>
+          <span><i class="dot surface-dot"></i> Superficie</span>
+        </div>
+
+        <div id="qualityBox" class="quality hidden"></div>
+
+        <button id="calculateImageBtn" class="btn primary full" disabled>Calcular superficie</button>
+      </div>
+
+      <div id="imageResultCard" class="card result-card hidden">
+        <div class="result-origin" id="imageOrigin">MEDICIÓN DESDE REFERENCIA FOTOGRÁFICA</div>
+        <div class="result-main">
+          <span id="imageArea">0,0</span>
+          <small>m²</small>
+        </div>
+        <div class="metric-grid">
+          <div><span>Ancho aprox.</span><strong id="imageWidth">—</strong></div>
+          <div><span>Alto aprox.</span><strong id="imageHeight">—</strong></div>
+        </div>
+        <div id="imageResultWarning" class="notice compact hidden"></div>
+
+        <details class="validation-box">
+          <summary>Modo calibración / comparación real</summary>
+          <label>Superficie real (m²)
+            <input id="realAreaInput" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="Ej. 12,40">
+          </label>
+          <button id="compareRealBtn" class="btn secondary full">Comparar</button>
+          <div id="compareOutput" class="compare-output"></div>
+        </details>
+
+        <div class="row">
+          <button id="adjustImageBtn" class="btn secondary">Corregir puntos</button>
+          <button id="newImageMeasureBtn" class="btn primary">Nueva medición</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="manualView" class="view">
+      <div class="section-head">
+        <h2>Ingresar medidas</h2>
+        <p>Elegí el tipo de superficie. Todo se calcula localmente en tu teléfono.</p>
+      </div>
+
+      <div class="segmented">
+        <button class="seg active" data-manual="wall">Pared</button>
+        <button class="seg" data-manual="floor">Piso</button>
+        <button class="seg" data-manual="pool">Pileta</button>
+        <button class="seg" data-manual="solarium">Solárium</button>
+      </div>
+
+      <div id="wallPanel" class="manual-panel card">
+        <h3>Pared / fachada</h3>
+        <div class="grid-2">
+          <label>Ancho (m)<input id="wallW" type="number" inputmode="decimal" min="0" step="0.01" value="10"></label>
+          <label>Alto (m)<input id="wallH" type="number" inputmode="decimal" min="0" step="0.01" value="3.2"></label>
+        </div>
+
+        <div class="subhead-row">
+          <h4>Descuentos</h4>
+          <button id="addOpeningBtn" class="btn tiny secondary">+ Agregar</button>
+        </div>
+        <div id="openingsList"></div>
+
+        <button id="calcWallBtn" class="btn primary full">Calcular pared</button>
+        <div id="wallResult" class="manual-result"></div>
+      </div>
+
+      <div id="floorPanel" class="manual-panel card hidden">
+        <h3>Piso</h3>
+        <div class="grid-2">
+          <label>Largo (m)<input id="floorL" type="number" inputmode="decimal" min="0" step="0.01" value="5"></label>
+          <label>Ancho (m)<input id="floorW" type="number" inputmode="decimal" min="0" step="0.01" value="4"></label>
+        </div>
+        <button id="calcFloorBtn" class="btn primary full">Calcular piso</button>
+        <div id="floorResult" class="manual-result"></div>
+      </div>
+
+      <div id="poolPanel" class="manual-panel card hidden">
+        <h3>Pileta rectangular</h3>
+        <div class="grid-3">
+          <label>Largo (m)<input id="poolL" type="number" inputmode="decimal" min="0" step="0.01" value="8"></label>
+          <label>Ancho (m)<input id="poolW" type="number" inputmode="decimal" min="0" step="0.01" value="4"></label>
+          <label>Profundidad (m)<input id="poolD" type="number" inputmode="decimal" min="0" step="0.01" value="1.5"></label>
+        </div>
+        <button id="calcPoolBtn" class="btn primary full">Calcular pileta</button>
+        <div id="poolResult" class="manual-result"></div>
+      </div>
+
+      <div id="solariumPanel" class="manual-panel card hidden">
+        <h3>Solárium</h3>
+        <div class="grid-2">
+          <label>Largo pileta (m)<input id="solPoolL" type="number" inputmode="decimal" min="0" step="0.01" value="8"></label>
+          <label>Ancho pileta (m)<input id="solPoolW" type="number" inputmode="decimal" min="0" step="0.01" value="4"></label>
+        </div>
+        <label class="check-row"><input id="uniformSolarium" type="checkbox" checked> Mismo ancho en los cuatro lados</label>
+        <div id="uniformSolFields">
+          <label>Ancho del solárium (m)<input id="solUniform" type="number" inputmode="decimal" min="0" step="0.01" value="1"></label>
+        </div>
+        <div id="sideSolFields" class="grid-2 hidden">
+          <label>Superior (m)<input id="solTop" type="number" inputmode="decimal" min="0" step="0.01" value="1"></label>
+          <label>Inferior (m)<input id="solBottom" type="number" inputmode="decimal" min="0" step="0.01" value="1"></label>
+          <label>Izquierdo (m)<input id="solLeft" type="number" inputmode="decimal" min="0" step="0.01" value="1"></label>
+          <label>Derecho (m)<input id="solRight" type="number" inputmode="decimal" min="0" step="0.01" value="1"></label>
+        </div>
+        <button id="calcSolBtn" class="btn primary full">Calcular solárium</button>
+        <div id="solResult" class="manual-result"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>Pancko Medidor V0.1 · cálculo local · sin ARCore/WebXR</span>
+  </footer>
+
+  <script src="./geometry.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
