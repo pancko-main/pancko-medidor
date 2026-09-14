@@ -87,3 +87,22 @@ select{width:100%;margin-top:6px;padding:11px 12px;border:1px solid #cbd5e1;bord
 /* V0.2: paneo con zoom administrado por JS */
 #editorCanvas{user-select:none;-webkit-user-select:none}
 .canvas-viewport{overscroll-behavior:contain}
+
+
+/* V0.3 */
+.zoom-presets{display:flex;gap:8px;flex-wrap:wrap;margin:-2px 0 10px}
+.zoom-preset.active{background:#dbeafe;border-color:#93c5fd;color:#1d4ed8}
+.loupe{
+  position:absolute;
+  width:160px;height:160px;border-radius:50%;
+  overflow:hidden;
+  border:4px solid rgba(255,255,255,.96);
+  box-shadow:0 10px 26px rgba(0,0,0,.28), 0 0 0 2px rgba(17,24,39,.14);
+  background:#fff;
+  pointer-events:none;
+  z-index:12;
+}
+#loupeCanvas{display:block;width:100%;height:100%}
+.canvas-viewport{position:relative}
+#editorCanvas{user-select:none;-webkit-user-select:none}
+.canvas-viewport{overscroll-behavior:contain}

@@ -13,6 +13,7 @@
     points:[],
     dragging:-1,
     gesture:null,
+    zoom:100,
     calibration:"a4",
     lastImageResult:null,
     openingSeq:0
@@ -161,9 +162,57 @@
   function setupEditorCanvas(){
     const src=state.imageCanvas, c=$("#editorCanvas");
     c.width=src.width; c.height=src.height;
-    $("#zoomRange").value=100;
-    c.style.width="100%";
+    applyZoom(100);
+    hideLoupe();
     renderEditor();
+  }
+
+  function setActiveZoomPreset(value){
+    $$(".zoom-preset").forEach(btn=>btn.classList.toggle("active", Number(btn.dataset.zoom)===Number(value)));
+  }
+
+  function applyZoom(value){
+    state.zoom=Number(value)||100;
+    $("#zoomRange").value=state.zoom;
+    $("#editorCanvas").style.width=`${state.zoom}%`;
+    setActiveZoomPreset(state.zoom);
+  }
+
+  function hideLoupe(){
+    show($("#loupe"), false);
+  }
+
+  function showLoupe(point, clientX, clientY){
+    if(!state.imageCanvas) return;
+    const loupe=$("#loupe"), lc=$("#loupeCanvas"), lctx=lc.getContext("2d");
+    const size=lc.width;
+    const zoomFactor=2.6;
+    const sample=size/zoomFactor;
+    lctx.clearRect(0,0,size,size);
+    lctx.imageSmoothingEnabled=true;
+    lctx.drawImage($("#editorCanvas"),
+      point.x - sample/2, point.y - sample/2, sample, sample,
+      0,0,size,size
+    );
+    lctx.save();
+    lctx.strokeStyle="rgba(255,255,255,.95)";
+    lctx.lineWidth=2;
+    lctx.beginPath(); lctx.moveTo(size/2,0); lctx.lineTo(size/2,size); lctx.stroke();
+    lctx.beginPath(); lctx.moveTo(0,size/2); lctx.lineTo(size,size/2); lctx.stroke();
+    lctx.restore();
+
+    const vp=$("#canvasViewport");
+    const rect=vp.getBoundingClientRect();
+    const loupeSize=160, gap=18;
+    let left=(clientX-rect.left)+gap;
+    let top=(clientY-rect.top)-loupeSize-gap;
+    if(left+loupeSize > rect.width-6) left=(clientX-rect.left)-loupeSize-gap;
+    if(left < 6) left=6;
+    if(top < 6) top=(clientY-rect.top)+gap;
+    if(top+loupeSize > rect.height-6) top=Math.max(6, rect.height-loupeSize-6);
+    loupe.style.left=`${left}px`;
+    loupe.style.top=`${top}px`;
+    show(loupe, true);
   }
 
   function targetPointCount(){ return state.calibration==="known-plane" ? 4 : 8; }
@@ -204,6 +253,8 @@
     if(hit>=0){
       state.dragging=hit;
       state.gesture=null;
+      renderEditor();
+      showLoupe(state.points[hit], e.clientX, e.clientY);
     }else{
       const vp=$("#canvasViewport");
       state.gesture={
@@ -220,13 +271,16 @@
     if(state.dragging>=0){
       const p=canvasPointFromEvent(e);
       p.x=Math.max(0,Math.min(canvas.width,p.x)); p.y=Math.max(0,Math.min(canvas.height,p.y));
-      state.points[state.dragging]=p; renderEditor(); updateQuality();
+      state.points[state.dragging]=p;
+      renderEditor();
+      updateQuality();
+      showLoupe(p, e.clientX, e.clientY);
       e.preventDefault();
       return;
     }
     if(state.gesture && state.gesture.pointerId===e.pointerId){
       const dx=e.clientX-state.gesture.startX, dy=e.clientY-state.gesture.startY;
-      if(Math.hypot(dx,dy)>7 && Number($("#zoomRange").value)>100){
+      if(Math.hypot(dx,dy)>7 && state.zoom>100){
         state.gesture.moved=true;
         const vp=$("#canvasViewport");
         vp.scrollLeft=state.gesture.scrollLeft-dx;
@@ -239,6 +293,7 @@
   function endPointer(e){
     if(state.dragging>=0){
       state.dragging=-1;
+      hideLoupe();
       updateEditorUI();
     }else if(state.gesture && state.gesture.pointerId===e.pointerId){
       if(!state.gesture.moved && state.points.length<targetPointCount()){
@@ -249,27 +304,34 @@
     }
   }
   canvas.addEventListener("pointerup",endPointer);
-  canvas.addEventListener("pointercancel",()=>{state.dragging=-1;state.gesture=null});
+  canvas.addEventListener("pointercancel",()=>{state.dragging=-1;state.gesture=null;hideLoupe();renderEditor()});
 
-  $("#undoPointBtn").addEventListener("click",()=>{state.points.pop();updateEditorUI()});
-  $("#resetPointsBtn").addEventListener("click",()=>{state.points=[];updateEditorUI()});
+  $("#undoPointBtn").addEventListener("click",()=>{state.points.pop();hideLoupe();updateEditorUI()});
+  $("#resetPointsBtn").addEventListener("click",()=>{state.points=[];hideLoupe();updateEditorUI()});
+
   $("#zoomRange").addEventListener("input",e=>{
-    $("#editorCanvas").style.width=`${e.target.value}%`;
+    applyZoom(Number(e.target.value));
     if(Number(e.target.value)>100 && !$("#markingInstruction").textContent.includes("arrastrá el fondo")){
       $("#markingInstruction").textContent += " Con zoom, arrastrá el fondo para moverte.";
     }
   });
+  $$(".zoom-preset").forEach(btn=>btn.addEventListener("click",()=>{
+    applyZoom(Number(btn.dataset.zoom));
+    if(Number(btn.dataset.zoom)>100 && !$("#markingInstruction").textContent.includes("arrastrá el fondo")){
+      $("#markingInstruction").textContent += " Con zoom, arrastrá el fondo para moverte.";
+    }
+  }));
 
   function renderEditor(){
     const c=$("#editorCanvas"), ctx=c.getContext("2d");
     if(!state.imageCanvas) return;
     ctx.clearRect(0,0,c.width,c.height); ctx.drawImage(state.imageCanvas,0,0);
     const groups = state.calibration==="known-plane"
-      ? [{pts:state.points.slice(0,4),color:"#22c55e"}]
-      : [{pts:state.points.slice(0,4),color:"#f59e0b"},{pts:state.points.slice(4,8),color:"#22c55e"}];
-    groups.forEach(g=>drawGroup(ctx,g.pts,g.color));
+      ? [{pts:state.points.slice(0,4),color:"#22c55e",base:0}]
+      : [{pts:state.points.slice(0,4),color:"#f59e0b",base:0},{pts:state.points.slice(4,8),color:"#22c55e",base:4}];
+    groups.forEach(g=>drawGroup(ctx,g.pts,g.color,g.base));
   }
-  function drawGroup(ctx,pts,color){
+  function drawGroup(ctx,pts,color,baseIndex=0){
     if(!pts.length)return;
     ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=Math.max(3,canvas.width/500);
     ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);
@@ -277,8 +339,18 @@
     if(pts.length===4)ctx.closePath();ctx.stroke();
     const rad=Math.max(10,canvas.width/110);
     pts.forEach((p,i)=>{
-      ctx.beginPath();ctx.arc(p.x,p.y,rad,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle="#111827";ctx.font=`bold ${Math.max(14,rad*1.15)}px sans-serif`;ctx.textAlign="center";ctx.textBaseline="middle";
+      const globalIndex=baseIndex+i;
+      const isActive=globalIndex===state.dragging;
+      const pointRadius=isActive ? rad*1.22 : rad;
+      if(isActive){
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,pointRadius+6,0,Math.PI*2);
+        ctx.fillStyle="rgba(255,255,255,.92)";
+        ctx.fill();
+        ctx.fillStyle=color;
+      }
+      ctx.beginPath();ctx.arc(p.x,p.y,pointRadius,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle="#111827";ctx.font=`bold ${Math.max(14,pointRadius*1.1)}px sans-serif`;ctx.textAlign="center";ctx.textBaseline="middle";
       ctx.fillText(String(i+1),p.x,p.y);ctx.fillStyle=color;
     });ctx.restore();
   }
@@ -399,6 +471,8 @@
   });
 
   function line(a,b,cls=""){return `<div class="calc-line ${cls}"><span>${a}</span><strong>${b}</strong></div>`}
+
+  applyZoom(100);
 
   // PWA
   if("serviceWorker" in navigator){

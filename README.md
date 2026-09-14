@@ -1,4 +1,4 @@
-# Pancko Medidor V0.2
+# Pancko Medidor V0.3
 
 PWA estática para medir superficies por:
 
@@ -89,3 +89,10 @@ No depende de OpenCV ni librerías externas, así que la PWA puede funcionar off
 - Los puntos continúan siendo arrastrables para ajuste fino.
 
 **Precisión:** la referencia debe estar físicamente sobre el mismo plano. Un portón o una puerta hundidos respecto de la fachada pueden introducir error.
+
+
+## Cambios V0.3
+- Zoom ampliado hasta **450 %**.
+- Botones rápidos de zoom: **100 / 200 / 300 / 450**.
+- **Lupa flotante** al arrastrar un vértice para que el dedo no tape el punto.
+- Mejor resaltado del vértice activo durante el ajuste fino.

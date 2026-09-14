@@ -16,7 +16,7 @@
     <button id="backBtn" class="icon-btn hidden" aria-label="Volver">←</button>
     <div>
       <h1>Pancko Medidor</h1>
-      <p class="subtitle">V0.2 experimental · primero medir, después vender pintura 😎</p>
+      <p class="subtitle">V0.3 experimental · primero medir, después vender pintura 😎</p>
     </div>
   </header>
 
@@ -132,12 +132,22 @@
           <button id="undoPointBtn" class="btn tiny secondary">Deshacer</button>
           <button id="resetPointsBtn" class="btn tiny secondary">Reiniciar</button>
           <label class="zoom-label">Zoom
-            <input id="zoomRange" type="range" min="100" max="220" value="100">
+            <input id="zoomRange" type="range" min="100" max="450" value="100">
           </label>
+        </div>
+
+        <div class="zoom-presets">
+          <button class="btn tiny secondary zoom-preset active" data-zoom="100">100%</button>
+          <button class="btn tiny secondary zoom-preset" data-zoom="200">200%</button>
+          <button class="btn tiny secondary zoom-preset" data-zoom="300">300%</button>
+          <button class="btn tiny secondary zoom-preset" data-zoom="450">450%</button>
         </div>
 
         <div id="canvasViewport" class="canvas-viewport">
           <canvas id="editorCanvas"></canvas>
+          <div id="loupe" class="loupe hidden" aria-hidden="true">
+            <canvas id="loupeCanvas" width="160" height="160"></canvas>
+          </div>
         </div>
 
         <div class="legend">
